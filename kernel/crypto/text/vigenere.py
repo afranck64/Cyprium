@@ -314,17 +314,21 @@ def decypher(text, key, algo, with_spaces=True):
 
 
 ############ Hack Section ###############
-def _count(key, most, lang, limit=5):
+def _count(key, most, lang, limit=5, map=None):
+    if not map:
+        map = r_square
     lst = []
     for c in most[:limit]:
-        lst.append(r_square[key][c])
+        lst.append(map[key][c])
     return get_ratio(lst, STATS[lang][:limit])
 
 
-def _compare(key, most, lang, limit=5):
+def _compare(key, most, lang, limit=5, map=None):
+    if not map:
+        map = r_square
     lst = []
     for c in most[:limit]:
-        lst.append(r_square[key][c])
+        lst.append(map[key][c])
     return SequenceMatcher(None, lst, STATS[lang][:limit]).ratio()
 
 
@@ -348,7 +352,7 @@ def get_IC(text):
 
 def find_key_length(text, algo, size=6, nb_values=None, recursiv=True):
     '''finds the key-length of a vigenere's like cyphered text'''
-    if algo in (ALGO_VIGENERE, ):
+    if algo in (ALGO_VIGENERE, ALGO_BEAUFORT):
         MAX = 2000
         MIN = 500
         NB_ELEMENTS = 5
@@ -477,13 +481,15 @@ def _get_r_square():
 r_square = _get_r_square()
 
 def _get_n_square():
-    '''returns a vigenere' square'''
+    '''returns a vigenere's square, where item[i][k] represents the
+    key-char that have been used to cypher i and have k.
+    Using the beaufort's cypher'''
     lst = list(string.ascii_uppercase)
     map = {}
     for c in lst:
         tmp = {}
         for i in lst:
-            tmp[i] = _char_shift(c, i)
+           tmp[_char_shift(c, i, True)] = i
         map[c] = tmp
     return map
 
@@ -508,14 +514,17 @@ def find_language(text):
     return res[0][1]
 
 
-def _find_k(most_chars, language, limit=5, probas=((3, 0), (2, 1), (2, 2))):
+def _find_k(most_chars, language, limit=5, map=None,
+                                probas=((3, 0), (2, 1), (2, 2))):
+    if not map:
+        map = r_square
     lst = []
     for item in probas:
         for i in range(item[0]):
-            lst.append( r_square[STATS[language][item[1]]][most_chars[i]])
+            lst.append( map[STATS[language][item[1]]][most_chars[i]])
     res = []
     for c in lst:
-        res.append((_count(c, most_chars, language, limit), c))
+        res.append((_count(c, most_chars, language, limit, map), c))
     res = _get_mosts(res)
     return res
 
@@ -528,10 +537,15 @@ def _get_mosts(lst):
             res.append(item)
     return res
 
-def _process_hack_vigenere(text, key_length, language, limit=10, ratio=0.75):
+def _process_hack_vigenere(text, key_length, language, limit=10, ratio=0.75,
+                                                        beaufort=False):
     '''return a possibly key for the given text,
     the key's length == key_length'''
     groups = list(utils.grouper2(text, key_length))
+    if beaufort:
+        map = n_square
+    else:
+        map = r_square
     keys = []
     result = []
     tmp_limit = limit
@@ -549,7 +563,7 @@ def _process_hack_vigenere(text, key_length, language, limit=10, ratio=0.75):
         probas = ((6, 0), (1, 1))
         for item in probas:
             for i in range(item[0]):
-                vars.append( r_square[STATS[language][item[1]]][most_chars[i]])
+                vars.append( map[STATS[language][item[1]]][most_chars[i]])
         lst = []
         for k in vars:
             cur = "".join(_process_vigenere(STATS[language][:limit], k))
@@ -561,13 +575,13 @@ def _process_hack_vigenere(text, key_length, language, limit=10, ratio=0.75):
         if not char:
             lst_keys = []
             limit = 10
-            lst = _find_k(most_chars, language, limit)
+            lst = _find_k(most_chars, language, limit, map)
             lst_keys.extend(lst)
 
             limit = 20
             lst = []
             for c in vars:
-                lst.append((_count(c, most_chars, language, limit), c))
+                lst.append((_count(c, most_chars, language, limit, map=map), c))
             lst = _get_mosts(lst)
             lst_keys.extend(lst)
             lst = []
@@ -600,6 +614,14 @@ def do_hack(text, algo, key_length=None, language=None):
             language = find_language(text)
         return "".join(i[0] for i in _process_hack_vigenere(_clear(text),
                         key_length, language))
+    elif algo==ALGO_BEAUFORT:
+        if not key_length:
+            key_length = find_key_length(text, algo)
+        if not language:
+            language = find_language(text)
+        return "".join(i[0] for i in _process_hack_vigenere(_clear(text),
+                        key_length, language, beaufort=True))
+
 
 
 
