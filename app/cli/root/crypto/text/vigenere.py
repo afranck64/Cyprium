@@ -1,4 +1,4 @@
-﻿#! /usr/bin/python3
+#! /usr/bin/python3
 
 ########################################################################
 #                                                                      #
@@ -126,12 +126,12 @@ class Vigenere(app.cli.Tool):
                            (vigenere.ALGO_BEAUFORT, "*beaufort", ""),
                            (vigenere.ALGO_GRONSFELD, "*gronsfeld", ""),
                            (vigenere.ALGO_AUTOCLAVE, "auto*clave", "")]
-                algo = ui.get_choice("Algorithm to use : ", options)
+                algo = ui.get_choice("Algorithm to use ", options)
 
                 # Get key
                 key = ui.get_data("Enter the key : ", sub_type=ui.STRING)
                 key = key.upper()
-            
+
                 spaces = ui.get_choice("Conserve spaces ?", options=[
                         (True, "$yes", ""), (False, "*no", "")],
                         oneline=True)
@@ -165,37 +165,57 @@ class Vigenere(app.cli.Tool):
                 return
 
     def decypher(self, ui):
-        """Interactive version of decypher()."""
+        """Interactive version of decypher and hack."""
         txt = ""
-        ui.message("===== Decypher Mode =====")
+        ui.message("===== Hack Mode =====")
 
         while 1:
             txt = ui.text_input("Please input the cyphered text ",
                                 sub_type=ui.STRING)
             if txt is None:
                 break
-            
+
             txt = txt.upper()
 
             # Get algo.
 
-            options = [(vigenere.ALGO_VIGENERE, "*vigenere", ""),
+            options = [(vigenere.ALGO_VIGENERE, "$vigenere", ""),
                        (vigenere.ALGO_BEAUFORT, "*beaufort", ""),
                        (vigenere.ALGO_GRONSFELD, "*gronsfeld", ""),
-                       (vigenere.ALGO_AUTOCLAVE, "auto*clave", "")]
-            algo = ui.get_choice("Algorithm to use : ", options)
+                       (vigenere.ALGO_AUTOCLAVE, "auto*clave", "")
+                       ]
+            algo = ui.get_choice("Algorithm to use", options)
 
             # Get key
-            key = ui.get_data("Enter the key : ", sub_type=ui.STRING)
-            key = key.upper()
-            
-            spaces = ui.get_choice("Conserve spaces ?", options=[
-                        (True, "$yes", ""), (False, "*no", "")],
-                        oneline=True)
+            options = [(1, "*1 the key", ""),
+                       (2, "*2 the key length and the language", ""),
+                       (3, "*3 the key length", ""),
+                       (4, "*4 the language", ""),
+                       (5, "$5 have no clue", ""),]
+            mode = ui.get_choice("You know... ", options)
+            language = key_length = key = None
+            if mode == 1:
+                key = ui.get_data("Enter the key : ", sub_type=ui.STRING)
+                key = key.upper()
+            if mode in (2, 4):
+                languages = vigenere.LANGUAGES
+                options = []
+                for i, lang in enumerate(languages):
+                    if lang=="fr":
+                        option = (lang, "$%d %s" % (i+1, languages[lang]), "")
+                    else:
+                        option = (lang, "*%d %s" % (i+1, languages[lang]), "")
+                    options.append(option)
+                language = ui.get_choice("The language is", options)
+            if mode in (2, 3):
+                key_length = ui.get_data("The key's length is ",
+                        sub_type=ui.INT)
+            if mode > 1:
+                key = vigenere.do_hack(txt, algo, key_length, language)
             try:
                 ui.text_output("Text successfully decyphered",
-                               vigenere.decypher(txt, key, algo, spaces),
-                               "The decyphered text is")
+                               vigenere.decypher(txt, key, algo),
+                               "")
             except Exception as e:
                 if utils.DEBUG:
                     import traceback
